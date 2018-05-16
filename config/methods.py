@@ -13,7 +13,6 @@ def check_exists(stream_df,ruleconfig,dependencies):
     return new_invalid
 
 def check_lead_time(stream_df,ruleconfig,dependencies):
-    # get Context for this rdd https://stackoverflow.com/questions/36051299/how-to-subtract-a-column-of-days-from-a-column-of-dates-in-pyspark
     # getting config variables out
     joinon = ruleconfig.get("join_cols")
     check_col = ruleconfig.get("check_col")
@@ -27,7 +26,6 @@ def check_lead_time(stream_df,ruleconfig,dependencies):
     where = "{} < {}".format("min_delivery",order_end)
 
     new_invalid = stream_df.join(dependency,joinon,"inner").selectExpr("*",expression).where(where)
-    new_invalid.show()
     sc = stream_df.columns
     ni_drop = [x for x in new_invalid.columns if x  not in sc]
     new_invalid = new_invalid.drop(*ni_drop)

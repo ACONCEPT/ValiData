@@ -1,6 +1,6 @@
-from kafka import KafkaProducer
 import json
 from datetime import datetime
+from kafka import KafkaProducer
 
 def getjsonproducer(bootstrap_servers):
     producer = KafkaProducer(bootstrap_servers=bootstrap_servers,\
