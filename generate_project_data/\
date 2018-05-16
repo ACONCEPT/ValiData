@@ -1,0 +1,45 @@
+#! usr/bin/env python3
+import sys
+from semantics3 import Products
+import json
+import os
+
+
+def semantic_API():
+    global product_api
+    access_tokens = [item.strip() for item in sys.stdin]
+    api_key = access_tokens[0]
+    api_secret = access_tokens[1]
+    product_api = Products(api_key = api_key, api_secret = api_secret)
+
+def get_product(product_name,pages):
+    global product_api
+    result = []
+    for i in range(pages):
+        product_api.products_field("search",product_name)
+        product_api.products_field("offset",str(i))
+        product_api.products_field("limit","10")
+        api_response = product_api.get_products()
+        api_response = api_response["results"]
+        result += api_response
+    return result
+
+def generate_product_file(output_file_name):
+    os.remove(output_file_name)
+    semantic_API()
+    all_products = []
+    from product_list import search_terms
+    for item in search_terms:
+        product_list = get_product("iphone",10)
+        all_products += product_list
+    with open(output_file_name,"w+") as f:
+        f.write(json.dumps(all_products))
+
+def test_output_file(output_file_name):
+    with open(output_file_name,"r") as f:
+        thefile = json.loads(f.read())
+    print(len(thefile))
+
+f __name__ == '__main__':
+   output_file_name = "json_data/product_data.json"
+   test_output_file(output_file_name)
