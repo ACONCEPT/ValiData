@@ -1,0 +1,4 @@
+# /usr/bin bash
+/opt/kafka/bin/kafka-topics.sh --list --zookeeper localhost:2181
+# /usr/bin bash
+/bin/kafka-topics.sh --list --zookeeper localhost:2181

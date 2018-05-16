@@ -1,0 +1,12 @@
+/home/joe/repos/project
+generate_data/env/*
+generate_data/json_data/*
+*.sw*
+*/env/
+env/
+__pycache__/
+*nohup*
+*/performance_log.json
+*/performance_runs.json
+*/__pycache__
+*.json

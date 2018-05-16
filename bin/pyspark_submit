@@ -1,0 +1,6 @@
+# /usr/env/bin bash
+#echo "testing pyspark on localhost"
+#$SPARK_HOME/bin/spark-submit --jars $SPARK_HOME/jars/postgresql-42.2.2.jar  --packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 ${1} ${2}
+#$SPARK_HOME/bin/spark-submit --master spark://50.112.50.75:7077 --py-files Enterprise_Data-0.0.0-py3.5.egg --jars $SPARK_HOME/jars/postgresql-42.2.2.jar --packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 ${1} ${2}
+#$SPARK_HOME/bin/spark-submit --master spark://50.112.50.75:7077 --py-files $PROJECT_HOME/config/config.py --jars $SPARK_HOME/jars/postgresql-42.2.2.jar --packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 ${1} ${2}
+$SPARK_HOME/bin/spark-submit --master spark://50.112.50.75:7077 --jars $SPARK_HOME/jars/postgresql-42.2.2.jar --packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 ${1} ${2}

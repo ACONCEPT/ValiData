@@ -1,0 +1,16 @@
+# usr/env/bin bash
+cd postgreslib
+git add .
+git commit -m '"${1}"'
+git push origin master
+cd ..
+cd project_consumer
+git add .
+git commit -m '"${1}"'
+git push origin master
+cd ..
+cd project_producer
+git add .
+git commit -m '"${1}"'
+git push origin master
+cd ..

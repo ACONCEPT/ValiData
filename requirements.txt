@@ -1,0 +1,14 @@
+click==6.7
+Faker==0.8.13
+Flask==1.0.2
+itsdangerous==0.24
+Jinja2==2.10
+kafka-python==1.4.2
+MarkupSafe==1.0
+pkg-resources==0.0.0
+psycopg2==2.7.4
+python-dateutil==2.7.2
+six==1.11.0
+text-unidecode==1.2
+tornado==5.0.2
+Werkzeug==0.14.1

@@ -1,0 +1,14 @@
+# /usr/env/bin bash
+git reset --hard origin/${1}
+cd postgreslib
+git reset --hard origin/${1}
+cd ..
+cd consumer
+git reset --hard origin/${1}
+cd ..
+cd producer
+git reset --hard origin/${1}
+cd ..
+cd postgreslib
+git reset --hard origin/${1}
+cd ..

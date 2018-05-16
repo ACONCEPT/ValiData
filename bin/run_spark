@@ -1,0 +1,3 @@
+# /usr/env/bin bash
+cd $PROJECT_HOME
+pyspark_submit src/main.py run_spark

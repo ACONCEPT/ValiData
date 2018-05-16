@@ -1,0 +1,30 @@
+# /usr/env/bin bash
+cd $PROJECT_HOME
+echo $(pwd)
+git add .
+git commit -m ${1}
+git push -f origin  ${2}
+cd postgreslib
+echo $(pwd)
+git add .
+git commit -m ${1}
+git push -f origin  ${2}
+cd ..
+cd consumer
+echo $(pwd)
+git add .
+git commit -m ${1}
+git push -f origin  ${2}
+cd ..
+cd producer
+echo $(pwd)
+git add .
+git commit -m ${1}
+git push -f origin  ${2}
+cd ..
+cd generate_project_data
+echo $(pwd)
+git add .
+git commit -m ${1}
+git push -f origin  ${2}
+cd ..

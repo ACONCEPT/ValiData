@@ -1,0 +1,4 @@
+# /usr/env/bin bash
+cd $PROJECT_HOME
+source env/bin/activate
+python src/main.py collect_stats 

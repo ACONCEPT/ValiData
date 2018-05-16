@@ -1,0 +1,4 @@
+# /usr/bin/env bash
+#
+source $PROJECT_HOME/env/bin/activate
+python $PROJECT_HOME/bin/test_consumer.py ${1}
