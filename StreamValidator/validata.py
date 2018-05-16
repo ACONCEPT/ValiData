@@ -87,6 +87,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
     global total_invalid
     total_valid = 0
     total_invalid = 0
+
     def wrap_validator(rulefuncs):
         """
         turns the rdd into a dataframe

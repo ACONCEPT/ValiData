@@ -31,7 +31,7 @@ def load_validation_rules(filepath, table, use_rules = False):
 
 def run_spark(bootstrap_servers,db,table):
     """ to run the main spark streaming job"""
-    from consumer.spark_func import stream_validation
+    from StreamValidator.validata import stream_validation
 #    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids","check_lead_time"])
     validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids"])
     print("main giving validation config {}".format([rule.name for rule in validation_config]))
