@@ -6,7 +6,6 @@ from helpers.get_data import get_url
 from pyspark.sql.types import DateType
 from helpers.kafka import KafkaWriter, get_topic, getjsonproducer
 from config import config
-from datetime import datetime
 from time import time
 
 #rules are defined in the project-root/config/methods.py file
@@ -122,7 +121,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         """
         def wrapped_rules(time,rdd):
             rowcount = len(rdd.collect())
-            validator_start = time.time()
+            validator_start = time()
             try:
                 stream_df = sqlc.createDataFrame(rdd.map(lambda v:json.loads(v)))
                 for arule in rulefuncs:
@@ -133,13 +132,13 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
                     ruledependencies = dependencies.get(rulename)
 
                     producer.produce_debug("rule {} start".format(rulename))
-                    rule_start = time.time()
+                    rule_start = time()
                     new_invalid = func(stream_df,ruleconfig,ruledependencies)
-                    rule_end = time.time()
+                    rule_end = time()
                     plog = {"label": rulename,"duration":rule_end - rule_start}
                     write_performance_log(**plog)
 
-                    subtract_start = time.time()
+                    subtract_start = time()
                     try:
                         invalidated = invalidated.union(new_invalid)
                     except UnboundLocalError as e:
@@ -147,17 +146,17 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
 
                     joinon = subtractconfig.get("join_cols")
                     stream_df = stream_df.join(invalidated,joinon,"left_anti")
-                    subtract_end = time.time()
+                    subtract_end = time()
 
-                    plog = {"label": subtractname,"duration":subtract_end - subtract_start}
+                    plog = {"label": "subtract","duration":subtract_end - subtract_start}
                     write_performance_log(**plog)
 
-                kafkawrite_start = time.time()
+                kafkawrite_start = time()
                 stream_df.toJSON().foreachPartition(send_kafka_valid)
                 invalidated.toJSON().foreachPartition(send_kafka_invalid)
-                kafkawrite_end = time.time()
+                kafkawrite_end = time()
 
-                plog = {"label": kafkawritename,"duration":kafkawrite_end - kafkawrite_start}
+                plog = {"label": "kafkawrite","duration":kafkawrite_end - kafkawrite_start}
                 write_performance_log(**plog)
 
                 #gather stats for logging... disable in production
@@ -179,8 +178,9 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
                 producer.produce_debug("unrecovered exception {}".format(e))
                 exit()
             finally:
-                validator_end = time.time()
-                plog = {"label": validatorname,"duration":validator_end - validator_start}
+                validator_end = time()
+                validator_duration = timedelta(validator_end , validator_start).total_seconds()
+                plog = {"label": "validator","duration":validator_duration}
                 write_performance_log(**plog)
         return wrapped_rules
 
