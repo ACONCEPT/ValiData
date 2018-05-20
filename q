@@ -52,6 +52,7 @@ def parse_runs():
 def process_run(run):
     if len(run) < 10:
         return False
+
     validator_running = False
     procs = defaultdict(list)
     for log in run:
@@ -70,7 +71,9 @@ def process_run(run):
             procs[proc].append({"status":status,"time":time,"counts":counts})
         else:
             procs[proc].append({"status":status,"time":time})
+
     return procs
+
 
 def process_runs():
     with open(PERFORMANCE_RUNS,"r") as f:
@@ -84,41 +87,11 @@ def process_runs():
     with open(PERFORMANCE_DATA,"w+") as f:
         f.write(json.dumps(result))
 
-def calculate_run_stats(proc):
-    durations = []
-    counts = []
-    for p in proc:
-        if p["status"] == "start":
-            current_start = parser.parse(p["time"] )
-        elif p["status"] == "end":
-            current_end = parser.parse(p["time"])
-            duration  = current_end - current_start
-            duration = duration.total_seconds()
-            durations.append(duration)
-            count = p.get("counts")
-            if count:
-                counts.append(int(count[0]))
-    try:
-        average_duration = sum(durations)/len(durations)
-    except ZeroDivisionError:
-        return None
-    try:
-        average_count = sum(counts)/len(counts)
-        average_velocity = average_count/average_duration
-        return {"duration":average_duration,"count": average_count,"velcity": average_velocity}
-    except:
-        return {"duration":average_duration}
-
 def process_performance_data():
     with open(PERFORMANCE_DATA,"r") as f:
         data = json.loads(f.read())
-    results = defaultdict(dict)
-    for i, d in enumerate(data):
-        for key,item in d.items():
-            print("getting stats for {} on run {}".format(key, i))
-            print(item)
-            results[i][key] = calculate_run_stats(item)
-    print(resuts.keys())
+    print(data[0].keys())
+
 
 def get_rule_list():
     with open(VALIDATION_FILE,"r" ) as f:
@@ -194,7 +167,7 @@ def track_kafka_speed():
 
 if __name__ == "__main__":
 #    parse_runs()
-#    process_runs()
+    process_runs()
     process_performance_data()
 #    parse_performance()
 #    track_performance()
