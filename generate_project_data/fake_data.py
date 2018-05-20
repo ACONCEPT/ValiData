@@ -9,12 +9,14 @@ from datetime import datetime, timedelta
 import os
 
 def random_part():
+    """ fetch random part name from the fake factory """
     global fake_factory
     name = product_name()
     description = fake_factory.sentence()
     return {"name":name,"description":description}
 
 def random_customer():
+    """ fetch random customer name from the fake factory """
     result = {}
     global fake_factory
     b2b_or_b2c = rd.uniform(0,1)
@@ -30,6 +32,7 @@ def random_customer():
     return result
 
 def random_supplier():
+    """ fetch random supplier name from the fake factory """
     result = {}
     global fake_factory
     result["name"] = fake_factory.company()
@@ -37,6 +40,7 @@ def random_supplier():
     return result
 
 def random_sales_order(dbc,**kwargs):
+    """ create random sales order """
     global fake_factory
     possible_status = ["000-000",\
                        #new open order
@@ -70,6 +74,7 @@ def random_sales_order(dbc,**kwargs):
     return result
 
 def random_purchase_order(dbc,**kwargs):
+    """ create random purchase order """
     global fake_factory
     possible_status = ["open","closed","partial"]
     result = {}
@@ -93,19 +98,14 @@ def random_purchase_order(dbc,**kwargs):
         result["order_expected_receipt"] = fake_factory.past_date()
     return result
 
-def get_fake_value(value_type):
-    if hasattr(value_type,"__call__"):
-        return value_type()
-    elif isinstance(value_type,str):
-        global fake_factory
-        return getattr(fake_factory,value_type)()
-
 def product_name():
+    """ create ake product name  """
     global product_data
     product = rd.choice(product_data)
     return product
 
 def read_product_data(datafile ="json_data/nounlist.txt"):
+    """ read fake product data from file"""
     datafile = "{}/generate_project_data/json_data/product_data_clean.json".format(os.environ["PROJECT_HOME"])
     with open(datafile,"r") as f:
         data = json.loads(f.read())
@@ -114,6 +114,7 @@ def read_product_data(datafile ="json_data/nounlist.txt"):
     return data
 
 def random_site():
+    """create random name for manufacturing site """
     global fake_factory
     beginning = "".join([rd.choice(string.ascii_uppercase) for x in range(2)])
     end = "".join([rd.choice(string.digits) for x in range(4)])
@@ -122,6 +123,7 @@ def random_site():
     return {"name":result,"location":loc}
 
 class mockData(object):
+    """ class for managing the generation of mocked data using the fakefactory """
     def __init__(self,database = "test_database"):
         self.config = {\
                        "sites": (10,random_site),\
@@ -141,12 +143,14 @@ class mockData(object):
         fake_factory = Faker()
 
     def set_quantity(self,configitem,amount):
+        """update config for mocking any particular tables data"""
         current_config = self.config.get(configitem)
         new_config = (amount,current_config[1])
         print("updating {}  from {} to {} ".format(configitem,current_config, new_config))
         self.config[configitem] = new_config
 
     def generate_insert_statement(self,**kwargs):
+        """ take any set of input kwargs and turn them into a formatted insert statement"""
         base_stmt = "insert into {} ({}) values ({});"
         column_definitions = self.dbc.descriptions.get(self.current_table)
         cols = []
@@ -173,6 +177,7 @@ class mockData(object):
         return base_stmt.format(self.current_table,columns, values)
 
     def part_customer_data(self):
+        """ special method for making customer data """
         self.current_table = "part_customers"
         part_list = self.dbc.get_column_from_table("parts","id")
         customer_list =self.dbc.get_column_from_table("customers","id")
@@ -191,6 +196,7 @@ class mockData(object):
         self.run_insert_statements()
 
     def part_supplier_data(self):
+        """ special method for making supplier data """
         print("making part_supplier data")
         self.current_table = "part_suppliers"
         part_list = self.dbc.get_column_from_table("parts","id")
@@ -207,23 +213,15 @@ class mockData(object):
                 self.insert_statements.append(insert_stmt)
         self.run_insert_statements()
 
-    def generate_starting_inventory(self):
-        result = {}
-        possible_status = ["available","expired","qa_hold"]
-        result["site_id"] = get_random_value_from_column("sites","id")[0]
-        result["part_id"] = part_id
-        result["status"] = rd.choice(possible_status)
-        result["quantity"] = rd.randint(0, 20000)
-        insert_stmt = self.generate_insert_statement(**result)
-        self.insert_statements.append(insert_stmt)
-
     def data_generator(self):
+        """for turning a data fetch method into a generator as per config """
         n,func = self.config.get(self.current_table)
         for i in range(n):
             row = func()
             yield self.generate_insert_statement(**row)
 
     def mock_data_from_config(self):
+        """ run all configured commands """
         self.insert_statements = []
         for command in self.commands:
             self.current_table = command
@@ -231,6 +229,7 @@ class mockData(object):
             self.insert_statements += [stmt for stmt in table_data_generator ]
 
     def run_insert_statements(self):
+        """ run all staged insert statements against the database """
         if self.insert_statements:
             for stmt in self.insert_statements:
                 if isinstance(stmt,dict):

@@ -24,11 +24,11 @@ def consume_test_topic(bootstrap_servers,topic):
             offset = message.offset
             if isinstance(val,dict):
                 for key, item in val.items():
-                    print("topic :  {} |{} : {} type {}".format(message.topic, key,item,type(item)))
+                    print("topic :  {} offset : {] | {} : {} type {}".format(message.topic,message.offset, key,item,type(item)))
             else:
                 print(val)
         except Exception as e:
-            print("exception {} on offset {}".format(e,message.offset))
+            print("exception {} on offset {} value {}".format(e,message.offset,message.value))
 
 if __name__ == '__main__':
     global DEFINITIONS

@@ -9,6 +9,7 @@ import os
 from config.database_connections import source_databases, base_queries
 
 class DBConnection(object):
+    """ handles the connection to postgres for producer and for data generation """
     def __init__(self,source_name):
 #        print("dbconnection got source name {}".format(source_name))
 #        print("source database keys {} ".format(source_databases))

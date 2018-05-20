@@ -3,8 +3,10 @@ from datetime import datetime
 from kafka import KafkaProducer
 
 def getjsonproducer(bootstrap_servers):
+
     producer = KafkaProducer(bootstrap_servers=bootstrap_servers,\
                              value_serializer=lambda v: json.dumps(v).encode("utf-8"))
+    
     print("creating producer for bootstrap servers {}".format(bootstrap_servers))
     return producer
 
@@ -18,19 +20,15 @@ def get_topic(datasource, table):
     return "ingestion.{}.{}".format(datasource,table)
 
 class KafkaWriter(object):
-    def __init__(self,bootstrap_servers,datasource = None, table = None,stat_interval = 50):
+    def __init__(self,bootstrap_servers,datasource = None, table = None):
         self.jsonproducer = getjsonproducer(bootstrap_servers)
         self.strproducer = getstrproducer(bootstrap_servers)
         self.datasource = datasource
         self.table = table
         self.counts = {}
-        self.stat_interval = stat_interval
 
     def produce_debug(self,msg):
         self.produce(msg,"debug")
-
-    def produce_stats(self,msg):
-        self.produce(msg,"stats",stat = False)
 
     def produce_reject(self,msg):
         self.produce(msg,"rejection")
@@ -38,30 +36,13 @@ class KafkaWriter(object):
     def produce_valid(self,msg):
         self.produce(msg,"validation")
 
-    def produce(self,msg,topic, stat = True):
+    def produce(self,msg,topic):
         try:
             self.jsonproducer.send(topic,json.dumps(msg))
             self.jsonproducer.flush()
         except:
             self.strproducer.send(topic,msg)
             self.strproducer.flush()
-
-        if stat:
-            if not self.counts.get(topic):
-                self.counts[topic] = 0
-                stat = {}
-                stat["topic"] = topic
-                stat["count"] = self.counts[topic]
-                stat["timestamp"] = datetime.utcnow().isoformat()
-                self.produce_stats(stat)
-
-            self.counts[topic] += 1
-            if self.counts[topic] % self.stat_interval == 0:
-                stat = {}
-                stat["topic"] = topic
-                stat["count"] = self.counts[topic]
-                stat["timestamp"] = datetime.utcnow().isoformat()
-                self.produce_stats(stat)
 
     def main_suffix(self,datasource = False,table = False):
         suffix = []
@@ -107,7 +88,3 @@ class KafkaWriter(object):
                 stat["count"] = i
                 stat["timestamp"] = datetime.utcnow().isoformat()
                 self.produce_stats(stat)
-
-
-
-

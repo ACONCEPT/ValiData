@@ -1,11 +1,12 @@
 import os
 import sys
 import json
-from config.config import VALIDATION_FILE, BOOTSTRAP_SERVERS, PERFORMANCE_LOG, PERFORMANCE_RUNS
+from config.config import VALIDATION_FILE, BOOTSTRAP_SERVERS, PERFORMANCE_LOG, PERFORMANCE_RUNS, PERFORMANCE_DATA
 from pprint import pprint
 from postgreslib.database_connection import DBConnection
 import pandas as pd
 from dateutil import parser
+from collections import defaultdict
 
 # Setting up connections to postgres
 dbc = DBConnection("postgres_rds")
@@ -51,24 +52,45 @@ def parse_runs():
 def process_run(run):
     if len(run) < 10:
         return False
-    print(len(run))
-    all_procs = []
-    for log in run:
-        p = log["proc"].split(" ")
-        p = [x.replace(",","").strip() for x in p]
-        if p[0] not in all_procs:
-            all_procs.append(p)
 
-    print(all_procs)
+    validator_running = False
+    procs = defaultdict(list)
+    for log in run:
+        proc = log.get("proc")
+        splitproc = proc.split(",")
+        proc = splitproc.pop(0)
+        counts = splitproc
+        if "validator" in proc:
+            if len(proc.strip().split(" ")) > 1:
+                splitproc = proc.split(" ")
+                proc = splitproc.pop(0)
+                counts = splitproc
+        status = log.get("status")
+        time = log.get("time")
+        if counts:
+            procs[proc].append({"status":status,"time":time,"counts":counts})
+        else:
+            procs[proc].append({"status":status,"time":time})
+
+    return procs
+
 
 def process_runs():
     with open(PERFORMANCE_RUNS,"r") as f:
         data = json.loads(f.read())
+    result = []
     for run in data:
         r = process_run(run)
         if r:
-            break
+            result.append(r)
 
+    with open(PERFORMANCE_DATA,"w+") as f:
+        f.write(json.dumps(result))
+
+def process_performance_data():
+    with open(PERFORMANCE_DATA,"r") as f:
+        data = json.loads(f.read())
+    print(data[0].keys())
 
 
 def get_rule_list():
@@ -144,8 +166,9 @@ def track_kafka_speed():
 
 
 if __name__ == "__main__":
-    process_runs()
 #    parse_runs()
+    process_runs()
+    process_performance_data()
 #    parse_performance()
 #    track_performance()
 #    track_kafka_speed()

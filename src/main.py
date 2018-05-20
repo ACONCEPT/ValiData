@@ -5,16 +5,13 @@ print("appending {}".format(path_to_append))
 sys.path.append(path_to_append)
 
 import json
-from subprocess import call
 from config import database_connections
 from config.config import TESTING_SERVER, BOOTSTRAP_SERVERS, VALIDATION_FILE
 from generate_project_data.generate_master_data import generate_master_data
 from generate_project_data.generate_orders import generate_orders
 from generate_project_data.create_stat_tables import generate_reporting_tables
-#from producer.producer import IngestionProducer, cache_records
 from producer import producer
 from helpers.validation import ValidationRule
-from consumer.stat_consumer import consume_stats,run_statistics
 
 def load_validation_rules(filepath, table, use_rules = False):
     """designed to help the main run_spark function to get validation rules from config"""
@@ -32,8 +29,8 @@ def load_validation_rules(filepath, table, use_rules = False):
 def run_spark(bootstrap_servers,db,table):
     """ to run the main spark streaming job"""
     from StreamValidator.validata import stream_validation
-#    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids","check_lead_time"])
-    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids"])
+    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids","check_lead_time"])
+#    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids"])
     print("main giving validation config {}".format([rule.name for rule in validation_config]))
     stream_validation(bootstrap_servers,db,table,validation_config)
 
@@ -63,15 +60,6 @@ def start_producer(bootstrap_servers,db,table):
     print("main table {}".format(table))
     ingp = producer.IngestionProducer(bootstrap_servers,db)
     ingp.ingest_data(table,number)
-
-def collect_stats(bootstrap_servers,db,table):
-    """to collect stats from the kafka topic [NOT USED]"""
-    try:
-        consume_stats(bootstrap_servers,db)
-    except Exception as e:
-        raise e
-    finally:
-        run_statistics(db)
 
 def reporting_tables(bootstrap_servers,db,table):
     """separate table reset for the performance reporting tables"""

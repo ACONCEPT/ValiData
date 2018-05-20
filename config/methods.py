@@ -8,8 +8,13 @@ def check_exists(stream_df,ruleconfig,dependencies):
     # only using one dependency for this rule
     dependency = dependencies[0]
 
+
     # invalid records are definded by a left anti join on the dependency table
     new_invalid = stream_df.join(dependency,joinon,"left_anti")
+
+    new_invalid.show()
+    dependency.show()
+
     return new_invalid
 
 def check_lead_time(stream_df,ruleconfig,dependencies):
@@ -28,7 +33,10 @@ def check_lead_time(stream_df,ruleconfig,dependencies):
     new_invalid = stream_df.join(dependency,joinon,"inner").selectExpr("*",expression).where(where)
     sc = stream_df.columns
     ni_drop = [x for x in new_invalid.columns if x  not in sc]
+    new_invalid.show()
     new_invalid = new_invalid.drop(*ni_drop)
+    dependency.show()
+    exit()
     return new_invalid
 
 validation_functions = {"check_exists":check_exists ,\

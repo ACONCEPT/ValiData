@@ -1,20 +1,18 @@
 from pyspark import SparkContext, SQLContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
-from pyspark.sql import Row,SparkSession
-from pyspark.sql.functions import to_json,struct, col, lit
-from pyspark.sql.utils import IllegalArgumentException
+from pyspark.sql import SparkSession
 from helpers.get_data import get_url
 from pyspark.sql.types import DateType
-from helpers.kafka import KafkaWriter, get_topic, getjsonproducer,getstrproducer
+from helpers.kafka import KafkaWriter, get_topic, getjsonproducer
 from config import config
-import json, math, datetime
-import copy
-#rules are defined in the project-root/config/methods.py file
-from config.methods import validation_functions
 from datetime import datetime
 from time import time
+
+#rules are defined in the project-root/config/methods.py file
+from config.methods import validation_functions
 CYCLES = 0
+import json
 
 def getSparkSessionInstance(sparkConf):
     """get a single instance of the spark session """
@@ -26,10 +24,10 @@ def getSparkSessionInstance(sparkConf):
     return globals()["sparkSessionSingletonInstance"]
 
 def write_performance_log(proc,status):
+    """ write to disk for benchmarking"""
     msg  = "{} | {}".format(proc,status)
     with open(config.PERFORMANCE_LOG,"a+") as f:
         f.write("{} | {}\n".format(datetime.now().isoformat(),msg))
-
 
 def stream_validation(bootstrap_servers,datasource,table,validation_config):
     """
@@ -53,7 +51,8 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
     #start Spark contexts
     sconf = SparkConf()\
             .setMaster("spark://50.112.50.75:7077")\
-            .set("spark.executor.cores","4")
+            .set("spark.executor.cores","4")\
+            .setExecutorEnv("PYSPARK_DRIVER_PYTHON")
 
     sc = SparkContext(appName="PythonSparkStreamingKafka",conf = sconf)
     sqlc = SQLContext(sc)
@@ -62,7 +61,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
     write_performance_log("driver","start")
     #create kafka producer in master
     producer = KafkaWriter(bootstrap_servers,datasource,table)
-
+    bootstrap_servers = config.BOOTSTRAP_SERVERS
 
     def get_table_df(table):
         """manages using jdbc to fetch the dependencies"""
@@ -73,6 +72,30 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         #df.describe()
         #df.show()
         return df
+
+
+    def send_to_kafka(iterable,topic):
+        from kafka import KafkaProducer
+        import os
+        producer = KafkaProducer(bootstrap_servers=bootstrap_servers,\
+                             value_serializer=lambda v: json.dumps(v).encode("utf-8"))
+
+        #q = os.environ["HOME"] + "/testlog.txt"
+        #content = [ "{} : {}".format(x,y)  for x,y in os.environ.items() if "PYTHON" in x]
+        #content += ["bootstrap_servers = {}".format(bootstrap_servers)]
+        #content += ["producer is a {}".format(type(producer))]
+        #with open(q,"w+") as f:
+        #    f.write("{}\n".format("\n".join(content)))
+
+        for row in iterable:
+            producer.send(topic,row)
+            producer.flush()
+
+    def send_valid(iterable):
+        send_to_kafka(iterable,"validated")
+
+    def send_invalid(iterable):
+        send_to_kafka(iterable,"invalidated")
 
     #load table dependencies from the source database
     dependencies = {}
@@ -88,7 +111,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
     total_valid = 0
     total_invalid = 0
 
-    def wrap_validator(rulefuncs):
+    def wrap_validator(rulefuncs,send_kafka_valid, send_kafka_invalid):
         """
         turns the rdd into a dataframe
         iterate over the list of rules
@@ -108,9 +131,11 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
                     func = arule[2]
                     ruledependencies = dependencies.get(rulename)
 
+                    producer.produce_debug("rule {} start".format(rulename))
                     write_performance_log("rule {}".format(rulename),"start")
                     new_invalid = func(stream_df,ruleconfig,ruledependencies)
                     write_performance_log("rule {}".format(rulename),"end")
+                    producer.produce_debug("rule{} invalidated {}".format(rulename, len(new_invalid.collect())))
 
                     #msg = ["\n\nexecuting rule name {}".format(rulename)]
                     #msg += ["func {}".format(func.__name__)]
@@ -124,27 +149,25 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
                     joinon = ruleconfig.get("join_cols")
                     stream_df = stream_df.join(invalidated,joinon,"left_anti")
 
+
                 write_performance_log("write_kafka","start")
+                stream_df.toJSON().foreachPartition(send_kafka_valid)
 
-                send_valid = stream_df.toJSON().collect()
-                for data in send_valid:
-                    producer.send_next(record = data, validity = True, rejectionrule = False)
+                invalidated.toJSON().foreachPartition(send_kafka_invalid)
 
-                send_invalid = invalidated.toJSON().collect()
-                for data in send_invalid:
-                    producer.send_next(record = data, validity = False, rejectionrule = "rejected")
-                producer.stat_remnants()
-
-                invalidcount = len(send_invalid)
-                validcount = len(send_valid)
-
+                #gather stats for logging... disable in production
                 global total_valid
                 global total_invalid
+
+                send_invalid = invalidated.toJSON().collect()
+                send_valid = stream_df.toJSON().collect()
+                invalidcount = len(send_invalid)
+                validcount = len(send_valid)
                 total_valid += validcount
                 total_invalid += invalidcount
-
                 write_performance_log("write_kafka , valid {}, invalid {}".format(validcount,invalidcount),"end")
                 producer.produce_debug("write_kafka , valid {}, invalid {}, total {}".format(validcount,invalidcount,rowcount))
+
             except ValueError as e:
                 #processing gives an emptyRDD error if the stream producer isn't running
                 producer.produce_debug("producer is empty, waiting for data... ")
@@ -169,7 +192,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
 
     #wrap all rules in validation_config into a validator function to be applied to the stream
     list_of_rules = [(r.name,r.config,validation_functions.get(r.method)) for r in validation_config]
-    validator = wrap_validator(list_of_rules)
+    validator = wrap_validator(list_of_rules,send_valid,send_invalid)
 
     data_ds = kafkaStream.map(lambda v:json.loads(v[1]))
     data_ds.foreachRDD(validator)
