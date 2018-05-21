@@ -67,7 +67,7 @@ this data as well
 
 # config.py 
 The important variables to set in this file are the following:
-	* BOOTSTRAP_SERVERS : set this to a list of the bootstrap servers youwant the dstream to read from
-	* ZOOKEEPER_SERVERS : zookeeper servers kafka is attached to
-	* DATABASE : the name of the database configured in the database_connections.py file. according to the above example : "test_database"
-	* STREAM_SIZE : the number of seconds of data that should be included in the spark microbatch
+  * BOOTSTRAP_SERVERS : set this to a list of the bootstrap servers youwant the dstream to read from
+  * ZOOKEEPER_SERVERS : zookeeper servers kafka is attached to
+  * DATABASE : the name of the database configured in the database_connections.py file. according to the above example : "test_database"
+  * STREAM_SIZE : the number of seconds of data that should be included in the spark microbatch
