@@ -1,4 +1,4 @@
-#ValiData
+# ValiData
 ## Concept
 in enterprise data infrastructure, it is important to remove errors from data as
 it is transferred between applications and regions in order to keep the
