@@ -36,7 +36,6 @@ def check_lead_time(stream_df,ruleconfig,dependencies):
     new_invalid.show()
     new_invalid = new_invalid.drop(*ni_drop)
     dependency.show()
-    exit()
     return new_invalid
 
 validation_functions = {"check_exists":check_exists ,\

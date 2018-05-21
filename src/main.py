@@ -3,10 +3,9 @@ import os
 path_to_append = os.environ.get("PROJECT_HOME")
 print("appending {}".format(path_to_append))
 sys.path.append(path_to_append)
-
 import json
 from config import database_connections
-from config.config import TESTING_SERVER, BOOTSTRAP_SERVERS, VALIDATION_FILE
+from config.config import TESTING_SERVER, BOOTSTRAP_SERVERS, VALIDATION_FILE, DATABASE
 from generate_project_data.generate_master_data import generate_master_data
 from generate_project_data.generate_orders import generate_orders
 from generate_project_data.create_stat_tables import generate_reporting_tables
@@ -29,8 +28,8 @@ def load_validation_rules(filepath, table, use_rules = False):
 def run_spark(bootstrap_servers,db,table):
     """ to run the main spark streaming job"""
     from StreamValidator.validata import stream_validation
-    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids","check_lead_time"])
-#    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids"])
+#    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids","check_lead_time"])
+    validation_config = load_validation_rules(VALIDATION_FILE,table,use_rules = ["check_customer_ids"])
     print("main giving validation config {}".format([rule.name for rule in validation_config]))
     stream_validation(bootstrap_servers,db,table,validation_config)
 
@@ -66,17 +65,8 @@ def reporting_tables(bootstrap_servers,db,table):
     generate_reporting_tables(db = db)
 
 if __name__ == "__main__":
-    if "joe" in os.environ.get("HOME"):
-        print("activating test settings ")
-        bootstrap_servers = TESTING_SERVER
-        db =  "test_database"
-    else:
-        print("activating cloud settings")
-        db =  "postgres_rds"
-        bootstrap_servers = BOOTSTRAP_SERVERS
-
     table = "sales_orders"
     module = sys.modules[__name__]
     run = sys.argv[1]
     print("activating {} with {} ".format(run, (bootstrap_servers,db,table)))
-    getattr(module,run)(bootstrap_servers,db,table)
+    getattr(module,run)(BOOTSTRAP_SERVERS,DATABASE,table)

@@ -6,7 +6,7 @@ def getjsonproducer(bootstrap_servers):
 
     producer = KafkaProducer(bootstrap_servers=bootstrap_servers,\
                              value_serializer=lambda v: json.dumps(v).encode("utf-8"))
-    
+     
     print("creating producer for bootstrap servers {}".format(bootstrap_servers))
     return producer
 

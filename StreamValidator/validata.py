@@ -6,7 +6,7 @@ from helpers.get_data import get_url
 from pyspark.sql.types import DateType
 from helpers.kafka import KafkaWriter, get_topic, getjsonproducer
 from config import config
-from time import time
+from datetime import datetime
 
 #rules are defined in the project-root/config/methods.py file
 from config.methods import validation_functions
@@ -23,8 +23,18 @@ def getSparkSessionInstance(sparkConf):
     return globals()["sparkSessionSingletonInstance"]
 
 def write_performance_log(**kwargs):
-    result = [datetetime.now ()]
-    result += ["{} : {}".format(k,v) for k,v in kwargs.items]
+    start = kwargs.pop("start",None)
+    end = kwargs.pop("end",None)
+    if start and end:
+        kwargs["duration"]  = (end - start).total_seconds()
+
+    if kwargs.get("label") == "validator":
+        if kwargs.get("duration") < 1:
+            return
+
+    result = [datetime.utcnow().isoformat()]
+    result += ["{} : {}".format(k,v) for k,v in kwargs.items()]
+    print(result)
     result = " | ".join(result)
     with open(config.PERFORMANCE_LOG,"a+") as f:
         f.write("{}\n".format(result))
@@ -52,7 +62,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
             .setMaster("spark://50.112.50.75:7077")\
             .set("spark.executor.cores","4")\
             .setExecutorEnv("PYSPARK_DRIVER_PYTHON")
-
+    write_performance_log(driver = "start")
     sc = SparkContext(appName="PythonSparkStreamingKafka",conf = sconf)
     sqlc = SQLContext(sc)
     ssc = StreamingContext(sc,config.STREAM_SIZE)
@@ -70,6 +80,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         #df.describe()
         #df.show()
         return df
+
 
 
     def send_to_kafka(iterable,topic):
@@ -120,8 +131,9 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         after iteration, send results to kafka
         """
         def wrapped_rules(time,rdd):
+            global validator_cycles
             rowcount = len(rdd.collect())
-            validator_start = time()
+            validator_start = datetime.now()
             try:
                 stream_df = sqlc.createDataFrame(rdd.map(lambda v:json.loads(v)))
                 for arule in rulefuncs:
@@ -131,46 +143,52 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
                     func = arule[2]
                     ruledependencies = dependencies.get(rulename)
 
-                    producer.produce_debug("rule {} start".format(rulename))
-                    rule_start = time()
+                    rule_start = datetime.now()
                     new_invalid = func(stream_df,ruleconfig,ruledependencies)
-                    rule_end = time()
-                    plog = {"label": rulename,"duration":rule_end - rule_start}
+                    rule_end = datetime.now()
+                    plog = {"label": rulename,"cycle":validator_cycles,"start":rule_start,"end":rule_end}
                     write_performance_log(**plog)
 
-                    subtract_start = time()
+                    subtract_start = datetime.now()
                     try:
                         invalidated = invalidated.union(new_invalid)
                     except UnboundLocalError as e:
                         invalidated = new_invalid
 
-                    joinon = subtractconfig.get("join_cols")
+                    joinon = ruleconfig.get("join_cols")
                     stream_df = stream_df.join(invalidated,joinon,"left_anti")
-                    subtract_end = time()
+                    subtract_end = datetime.now()
 
-                    plog = {"label": "subtract","duration":subtract_end - subtract_start}
+                    plog = {"label": "subtract","cycle":validator_cycles,"start":subtract_start,"end":subtract_end}
                     write_performance_log(**plog)
 
-                kafkawrite_start = time()
+                kafkawrite_start = datetime.now()
+
                 stream_df.toJSON().foreachPartition(send_kafka_valid)
                 invalidated.toJSON().foreachPartition(send_kafka_invalid)
-                kafkawrite_end = time()
 
-                plog = {"label": "kafkawrite","duration":kafkawrite_end - kafkawrite_start}
-                write_performance_log(**plog)
-
-                #gather stats for logging... disable in production
-                global total_valid
-                global total_invalid
-
+                kafkawrite_end = datetime.now()
                 send_invalid = invalidated.toJSON().collect()
                 send_valid = stream_df.toJSON().collect()
                 invalidcount = len(send_invalid)
                 validcount = len(send_valid)
+
+                plog = {"label": "kafkawrite",\
+                        "cycle":validator_cycles,\
+                        'valid_count':str(validcount),\
+                        'invalid_count':str(invalidcount),\
+                        "start":kafkawrite_start,\
+                        "end":kafkawrite_end}
+                write_performance_log(**plog)
+
+                #gather stats for logging... disable in production
+
+                global total_valid
+                global total_invalid
+
                 total_valid += validcount
                 validator_cycles += 1
                 total_invalid += invalidcount
-                producer.produce_debug("write_kafka , valid {}, invalid {}, total {}".format(validcount,invalidcount,rowcount))
             except ValueError as e:
                 #processing gives an emptyRDD error if the stream producer isn't running
                 producer.produce_debug("producer is empty, waiting for data... ")
@@ -178,9 +196,12 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
                 producer.produce_debug("unrecovered exception {}".format(e))
                 exit()
             finally:
-                validator_end = time()
-                validator_duration = timedelta(validator_end , validator_start).total_seconds()
-                plog = {"label": "validator","duration":validator_duration}
+                validator_end = datetime.now()
+                plog = {"label": "validator",\
+                        "cycle":validator_cycles,\
+                        "start":validator_start,\
+                        "end":validator_end}
+
                 write_performance_log(**plog)
         return wrapped_rules
 
@@ -202,13 +223,6 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
 
     data_ds = kafkaStream.map(lambda v:json.loads(v[1]))
     data_ds.foreachRDD(validator)
-
-    #msg = ["\n\n\nabout to start spark StreamingContext.."]
-    #msg += ["topic {}".format(topic)]
-
-    #msg += ["list of rules {}".format([x[0] for x in list_of_rules])]
-    #msg += ["list of dependencies {}".format(", ".join(list(dependencies.keys())))]
-    #producer.produce_debug("\n".join(msg))
 
     ssc.start()
     ssc.awaitTermination()
