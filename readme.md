@@ -1,3 +1,4 @@
+#ValiData
 ## Concept
 in enterprise data infrastructure, it is important to remove errors from data as
 it is transferred between applications and regions in order to keep the
@@ -13,7 +14,7 @@ in order to run this application, it is necessary to have a pre-installed Apache
 cluster as well as an Apache Kafka Cluster
 
 ## Configuration  
-# configuration steps:
+### configuration steps:
   * adjust the variable for "BOOTSTRAP_SERVERS" in the application config/config.py
   file to match your networked Apache Kafka servers and adjust the script argument
 
@@ -26,7 +27,7 @@ cluster as well as an Apache Kafka Cluster
   * "master" in "pyspark_submit.sh" in the
   bin directory to match the master ip and port of your Apache Spark cluster. 
 
-# validation rule configuration
+### validation rule configuration
 the outer key is the table name that the stream should run on. you will set a
 reference to this in the config.py file later, and it is the way that the stream
 processor knows what topic to read from (in combination with your database name)
@@ -53,7 +54,7 @@ particular tables' stream:
   * rejection rule determines the name of the kafka topic that the rejected data is
   sent to
 
-# database configuration
+### database configuration
 the database configuration is just a python dictionary. add a key to it with the
 name of your new database. the value of this key should be another dictionary
 with two keys "type" and "connection details". "type" is just type of database
@@ -65,7 +66,7 @@ this data as well
 "test_database":{"type":"postgres"
 "connection_details" :"host='localhost' port='5432' user='test' dbname='test' password='test'" }
 
-# config.py 
+### config.py 
 The important variables to set in this file are the following:
   * BOOTSTRAP_SERVERS : set this to a list of the bootstrap servers you want the dstream to read from and send to
   
