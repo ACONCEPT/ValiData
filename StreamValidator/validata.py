@@ -62,7 +62,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
             .setMaster("spark://50.112.50.75:7077")\
             .set("spark.executor.cores","4")\
             .setExecutorEnv("PYSPARK_DRIVER_PYTHON")
-    write_performance_log(driver = "start")
+    write_performance_log(driver = "start", STREAM_SIZE = config.STREAM_SIZE, partitions = 2, notes = "kafka in  batches")
     sc = SparkContext(appName="PythonSparkStreamingKafka",conf = sconf)
     sqlc = SQLContext(sc)
     ssc = StreamingContext(sc,config.STREAM_SIZE)
@@ -81,24 +81,15 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         #df.show()
         return df
 
-
-
     def send_to_kafka(iterable,topic):
         from kafka import KafkaProducer
         import os
         producer = KafkaProducer(bootstrap_servers=bootstrap_servers,\
                              value_serializer=lambda v: json.dumps(v).encode("utf-8"))
 
-        #q = os.environ["HOME"] + "/testlog.txt"
-        #content = [ "{} : {}".format(x,y)  for x,y in os.environ.items() if "PYTHON" in x]
-        #content += ["bootstrap_servers = {}".format(bootstrap_servers)]
-        #content += ["producer is a {}".format(type(producer))]
-        #with open(q,"w+") as f:
-        #    f.write("{}\n".format("\n".join(content)))
-
         for row in iterable:
             producer.send(topic,row)
-            producer.flush()
+        producer.flush()
 
     def send_valid(iterable):
         send_to_kafka(iterable,"validated")
@@ -113,7 +104,6 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         for d in rule.dependencies:
             name = rule.name
             dependencies[rule.name].append(get_table_df(d))
-
 
     global total_valid
     global total_invalid

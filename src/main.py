@@ -14,7 +14,7 @@ from helpers.validation import ValidationRule
 
 def load_validation_rules(filepath, table, use_rules = False):
     """designed to help the main run_spark function to get validation rules from config"""
-    print ("bootstraps {}, db {}".format(bootstrap_servers,db))
+    print ("bootstraps {}, db {}".format(BOOTSTRAP_SERVERS,DATABASE))
     with open(VALIDATION_FILE,"r" ) as f:
         data = json.loads(f.read())
     rulelist = data.get(table)
@@ -68,5 +68,6 @@ if __name__ == "__main__":
     table = "sales_orders"
     module = sys.modules[__name__]
     run = sys.argv[1]
-    print("activating {} with {} ".format(run, (bootstrap_servers,db,table)))
+    print("activating {} with {} ".format(run,( BOOTSTRAP_SERVERS,DATABASE,table)))
     getattr(module,run)(BOOTSTRAP_SERVERS,DATABASE,table)
+

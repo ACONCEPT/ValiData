@@ -16,109 +16,8 @@ def get_run_id():
     query = "select max(run_id) + 1 from run_stats;"
     return dbc.execute_query(query)[0][0]
 
-def parse_p_row(row):
-    row = row.split("|")
-    time = row[0].strip()
-    proc = row[1].strip()
-    status = row[2].strip()
-    return time,proc,status
-
-def parse_runs():
-    with open(PERFORMANCE_LOG,"r") as f:
-        data = f.readlines()
-    runs = []
-    run = []
-    for d in data:
-        time,proc,status = parse_p_row(d)
-        if proc == "driver" and status == "start":
-            print("newrun")
-            newrun = True
-        if newrun:
-            if run:
-                runs.append(run)
-                run = []
-                newrun = False
-        run.append({"proc":proc,"status":status,"time":time})
-    runs.append(run)
-    print(len(runs))
-    input("press enter to print all runs")
-    for run in runs:
-        print(type(run))
-        input("press enter to print run")
-        print(run)
-    with open(PERFORMANCE_RUNS,"w+")  as f:
-        f.write(json.dumps(runs))
-
-def process_run(run):
-    if len(run) < 10:
-        return False
-    validator_running = False
-    procs = defaultdict(list)
-    for log in run:
-        proc = log.get("proc")
-        splitproc = proc.split(",")
-        proc = splitproc.pop(0)
-        counts = splitproc
-        if "validator" in proc:
-            if len(proc.strip().split(" ")) > 1:
-                splitproc = proc.split(" ")
-                proc = splitproc.pop(0)
-                counts = splitproc
-        status = log.get("status")
-        time = log.get("time")
-        if counts:
-            procs[proc].append({"status":status,"time":time,"counts":counts})
-        else:
-            procs[proc].append({"status":status,"time":time})
-    return procs
-
-def process_runs():
-    with open(PERFORMANCE_RUNS,"r") as f:
-        data = json.loads(f.read())
-    result = []
-    for run in data:
-        r = process_run(run)
-        if r:
-            result.append(r)
-
     with open(PERFORMANCE_DATA,"w+") as f:
         f.write(json.dumps(result))
-
-def calculate_run_stats(proc):
-    durations = []
-    counts = []
-    for p in proc:
-        if p["status"] == "start":
-            current_start = parser.parse(p["time"] )
-        elif p["status"] == "end":
-            current_end = parser.parse(p["time"])
-            duration  = current_end - current_start
-            duration = duration.total_seconds()
-            durations.append(duration)
-            count = p.get("counts")
-            if count:
-                counts.append(int(count[0]))
-    try:
-        average_duration = sum(durations)/len(durations)
-    except ZeroDivisionError:
-        return None
-    try:
-        average_count = sum(counts)/len(counts)
-        average_velocity = average_count/average_duration
-        return {"duration":average_duration,"count": average_count,"velcity": average_velocity}
-    except:
-        return {"duration":average_duration}
-
-def process_performance_data():
-    with open(PERFORMANCE_DATA,"r") as f:
-        data = json.loads(f.read())
-    results = defaultdict(dict)
-    for i, d in enumerate(data):
-        for key,item in d.items():
-            print("getting stats for {} on run {}".format(key, i))
-            print(item)
-            results[i][key] = calculate_run_stats(item)
-    print(resuts.keys())
 
 def get_rule_list():
     with open(VALIDATION_FILE,"r" ) as f:
@@ -191,11 +90,54 @@ def track_kafka_speed():
     r_s = n/elapsed
     print("{} records in {} seconds {} r/s".format(n,e-s,r_s))
 
+def average_run(run):
+    result = {}
+    for key,item in run.items():
+        if key not in  ["cycles","notes"]:
+            result[key] = sum(item)/len(item)
+        else:
+            result[key] = item
+    result["notes"] = run["notes"]
+    result["total"] = result["validcount"] + result["invalidcount"]
+    result["check_customer_ids_velocity"] = result["total"]/result["check_customer_ids"]
+    result["subtract_velocity"] = result["total"]/result["subtract"]
+    result["kafkawrite_velocity"] = result["total"]/result["kafkawrite"]
+    result["validator_velocity"] = result["total"]/result["validator"]
+    return result
+
+def analyze_performance():
+    with open(PERFORMANCE_LOG , "r") as f:
+        data = f.readlines()
+
+    all_runs = []
+    procs = defaultdict(list)
+    for line in data:
+        sl = line.split("|")
+        time = sl.pop(0)
+        sl = {x.split(":")[0].strip():x.split(":")[1].strip() for x in sl}
+        if sl.get("driver"):
+            if procs != {}:
+                all_runs.append(procs)
+            procs = defaultdict(list)
+            sl.pop("driver")
+            notes = ", ".join(["{} : {}".format(k,v) for k,v in sl.items()])
+            procs["notes"] = notes
+        else:
+            procs[sl.get("label")].append(float(sl.get("duration")))
+            valid_count = sl.get('valid_count',None)
+            invalid_count = sl.get('invalid_count',None)
+            if valid_count and invalid_count:
+                procs["validcount"].append(int(valid_count))
+                procs["invalidcount"].append(int(invalid_count))
+            cyclecount = int(sl.get("cycle"))
+    all_runs.append(procs)
+    all_runs = [average_run(x) for x in all_runs]
+    for i, run in enumerate(all_runs):
+        msg = ["Run number {} in archive ".format(i)]
+        msg += ["{} : {}".format(k,v) for k,v in run.items() if "velocity" in k
+                or k in ("total","notes")]
+        print("\n".join(msg))
+        print()
 
 if __name__ == "__main__":
-#    parse_runs()
-#    process_runs()
-    process_performance_data()
-#    parse_performance()
-#    track_performance()
-#    track_kafka_speed()
+    analyze_performance()

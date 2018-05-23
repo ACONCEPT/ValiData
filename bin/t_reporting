@@ -1,3 +1,0 @@
-# /usr/env/bin bash
-run_producer 2000
-collect_stats
