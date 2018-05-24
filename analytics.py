@@ -135,7 +135,7 @@ def analyze_performance():
     for i, run in enumerate(all_runs):
         msg = ["Run number {} in archive ".format(i)]
         msg += ["{} : {}".format(k,v) for k,v in run.items() if "velocity" in k
-                or k in ("total","notes")]
+                or k in ("total","notes","validator")]
         print("\n".join(msg))
         print()
 

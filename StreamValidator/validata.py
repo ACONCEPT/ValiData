@@ -85,7 +85,7 @@ def stream_validation(bootstrap_servers,datasource,table,validation_config):
         from kafka import KafkaProducer
         import os
         producer = KafkaProducer(bootstrap_servers=bootstrap_servers,\
-                             value_serializer=lambda v: json.dumps(v).encode("utf-8"))
+                             value_serializer=lambda v: v.encode("utf-8"))
 
         for row in iterable:
             producer.send(topic,row)
