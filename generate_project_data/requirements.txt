@@ -5,7 +5,7 @@ chardet==3.0.4
 Faker==0.8.13
 idna==2.6
 macholib==1.9
-numpy==1.14.2
+numpy==1.22.0
 oauthlib==2.0.7
 psycopg2==2.7.4
 python-dateutil==2.7.2
